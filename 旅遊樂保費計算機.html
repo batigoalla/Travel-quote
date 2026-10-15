@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="旅遊樂計算機">
+<title>旅遊樂保費計算機</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: phone = form then quote ticket, with a pinned total bar; ≥880px = form left, sticky ticket right */
+:root{
+  --bg:#EDF1F3; --surface:#FFFFFF; --sunken:#F4F7F8; --ink:#15232C; --muted:#5B6C77; --line:#D3DCE1;
+  --accent:#1C5B78; --accent-ink:#FFFFFF; --accent-soft:#DDEAF0;
+  --save:#2C7A4C; --warn:#8F5600; --warn-soft:#FAF0DD; --danger:#B3261E;
+  --f-body:"Noto Sans TC","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E161B; --surface:#162128; --sunken:#1C2930; --ink:#E5ECF0; --muted:#9BACB6; --line:#2A3942;
+    --accent:#86BDD8; --accent-ink:#0C1A21; --accent-soft:#1D3341;
+    --save:#74CF9A; --warn:#F0B460; --warn-soft:#382A13; --danger:#F28B82;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E161B; --surface:#162128; --sunken:#1C2930; --ink:#E5ECF0; --muted:#9BACB6; --line:#2A3942;
+  --accent:#86BDD8; --accent-ink:#0C1A21; --accent-soft:#1D3341;
+  --save:#74CF9A; --warn:#F0B460; --warn-soft:#382A13; --danger:#F28B82;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 104px;
+}
+.wrap{max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:20px}
+header{display:flex; flex-direction:column; gap:4px}
+.eyebrow{font-size:12px; letter-spacing:.12em; color:var(--muted); font-weight:500}
+h1{font-size:clamp(22px,5.4vw,30px); line-height:1.25; margin:0; font-weight:700; text-wrap:balance}
+.sub{margin:0; color:var(--muted); font-size:14px}
+
+.grid{display:grid; gap:20px; align-items:start}
+@media (min-width:880px){
+  .grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+  .ticket{position:sticky; top:calc(env(safe-area-inset-top, 0px) + 16px)}
+  body{padding-bottom:32px}
+  .bar{display:none!important}
+}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:22px; min-width:0}
+.field{display:flex; flex-direction:column; gap:8px; min-width:0}
+.lab{font-size:13px; font-weight:500; color:var(--muted); letter-spacing:.04em}
+.lab-row{display:flex; justify-content:space-between; align-items:center; gap:12px}
+.hint{margin:0; font-size:13px; color:var(--muted)}
+
+/* segmented */
+.seg{display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px; padding:4px; background:var(--sunken); border:1px solid var(--line); border-radius:12px}
+.seg input{position:absolute; opacity:0; pointer-events:none; width:1px; height:1px}
+.seg label{display:flex; align-items:center; justify-content:center; text-align:center; min-height:42px; padding:6px 6px; border-radius:9px; cursor:pointer; font-weight:500; color:var(--muted); font-size:15px; line-height:1.25; transition:background .15s,color .15s}
+.seg input:checked + label{background:var(--surface); color:var(--ink); box-shadow:0 0 0 1px var(--line), 0 1px 3px rgb(0 0 0 / .08)}
+.seg input:focus-visible + label{outline:2px solid var(--accent); outline-offset:1px}
+.seg.is-off{opacity:.45}
+.seg.is-off label{cursor:not-allowed}
+.seg-sm{display:inline-grid; padding:3px}
+.seg-sm label{min-height:30px; padding:2px 12px; font-size:13px}
+
+/* dates */
+.dates{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.dates.one{grid-template-columns:1fr}
+.date{display:flex; flex-direction:column; gap:6px; min-width:0}
+input[type=date], input[type=number]{
+  width:100%; min-width:0; font:inherit; font-size:16px; color:var(--ink); background:var(--sunken);
+  border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-height:46px;
+}
+input[type=date]{font-family:var(--f-num); font-size:15px}
+input:focus-visible{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+.span{font-size:13px; color:var(--accent); font-weight:500}
+
+/* travellers */
+.people{display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.prow{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:var(--surface)}
+.prow + .prow{border-top:1px solid var(--line)}
+.pname{display:flex; flex-direction:column; line-height:1.3}
+.pname b{font-weight:500; font-size:16px}
+.pname small{color:var(--muted); font-size:12.5px}
+.switch{appearance:none; -webkit-appearance:none; width:54px; height:32px; border-radius:999px; background:var(--line); position:relative; cursor:pointer; margin:0; flex:none; transition:background .18s}
+.switch::before{content:""; position:absolute; top:3px; left:3px; width:26px; height:26px; border-radius:50%; background:var(--surface); box-shadow:0 1px 3px rgb(0 0 0 / .25); transition:transform .18s}
+.switch:checked{background:var(--accent)}
+.switch:checked::before{transform:translateX(22px)}
+.switch:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.stepper{display:flex; align-items:center; gap:4px; flex:none}
+.stepper button{width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--sunken); color:var(--ink); font-size:20px; line-height:1; cursor:pointer; display:grid; place-items:center}
+.stepper button:disabled{opacity:.35; cursor:not-allowed}
+.stepper button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.stepper output{min-width:32px; text-align:center; font-family:var(--f-num); font-weight:600; font-size:17px}
+.pcount{display:flex; justify-content:space-between; font-size:13px; color:var(--muted)}
+.pcount b{color:var(--ink); font-weight:500}
+
+/* money inputs */
+.money{display:flex; align-items:center; background:var(--sunken); border:1px solid var(--line); border-radius:10px; min-height:46px; padding:0 12px; gap:8px}
+.money:focus-within{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+.money input{border:0; background:transparent; padding:10px 0; outline:none; font-family:var(--f-num); font-size:17px}
+.money input:focus-visible{outline:none}
+.money span{color:var(--muted); font-size:14px; white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:6px 14px; font:inherit; font-size:14px; cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+.chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.manual{background:var(--warn-soft); border-radius:12px; padding:14px; border:1px solid color-mix(in srgb, var(--warn) 30%, transparent)}
+.manual .lab{color:var(--warn)}
+.manual .money{background:var(--surface)}
+
+/* ticket */
+.ticket{background:var(--surface); border:1px solid var(--line); border-radius:16px; min-width:0}
+.t-head{padding:18px 20px 16px; display:flex; flex-direction:column; gap:10px}
+.t-top{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.t-kicker{font-size:12px; letter-spacing:.14em; color:var(--muted); font-weight:500}
+.t-date{font-family:var(--f-num); font-size:12px; color:var(--muted)}
+.t-plan{font-size:19px; font-weight:700; line-height:1.3}
+.meta{display:grid; grid-template-columns:auto 1fr; gap:4px 14px; font-size:14px; margin:0}
+.meta dt{color:var(--muted)}
+.meta dd{margin:0; min-width:0}
+.t-body{padding:16px 20px; display:flex; flex-direction:column; gap:10px; border-top:1px solid var(--line)}
+.line{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.line .k{min-width:0}
+.line .v{font-family:var(--f-num); font-variant-numeric:tabular-nums; white-space:nowrap}
+.line.sm{font-size:13px; color:var(--muted)}
+.line.strong .k{font-weight:500}
+.line.strong .v{font-weight:600}
+.line.save .v, .line.save .k{color:var(--save)}
+.line.levy .k small{color:var(--muted)}
+.perf{position:relative; height:0; border-top:2px dashed var(--line); margin:0}
+.perf::before,.perf::after{content:""; position:absolute; top:-12px; width:22px; height:22px; border-radius:50%; background:var(--bg); border:1px solid var(--line)}
+.perf::before{left:-12px; clip-path:inset(0 0 0 50%)}
+.perf::after{right:-12px; clip-path:inset(0 50% 0 0)}
+.t-total{padding:18px 20px 20px; display:flex; flex-direction:column; gap:14px}
+.total{display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap}
+.total .k{font-weight:700; font-size:16px}
+.total .v{font-family:var(--f-num); font-weight:600; font-size:clamp(28px,7.5vw,36px); line-height:1; color:var(--accent); font-variant-numeric:tabular-nums}
+.src{align-self:flex-start; font-size:12px; padding:3px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-weight:500}
+.src.est{background:var(--warn-soft); color:var(--warn)}
+.copy{appearance:none; border:0; border-radius:12px; min-height:48px; background:var(--accent); color:var(--accent-ink); font:inherit; font-weight:700; font-size:16px; cursor:pointer}
+.copy:disabled{opacity:.4; cursor:not-allowed}
+.copy:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
+.fallback{width:100%; min-height:220px; font:inherit; font-size:14px; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--sunken); color:var(--ink)}
+.err{padding:28px 20px; color:var(--danger); font-weight:500; text-align:center; border-top:1px solid var(--line)}
+
+details{border-top:1px solid var(--line); padding:14px 20px}
+summary{cursor:pointer; font-size:14px; font-weight:500; color:var(--muted)}
+summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+details ul{margin:10px 0 0; padding-left:1.2em; font-size:13.5px; color:var(--muted); display:flex; flex-direction:column; gap:6px; max-width:62ch}
+.foot{font-size:12.5px; color:var(--muted); text-align:center; margin:0}
+
+/* pinned total bar on phone */
+.bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:5;
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding-top:12px; padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left:max(20px, env(safe-area-inset-left, 0px)); padding-right:max(20px, env(safe-area-inset-right, 0px));
+  background:var(--ink); color:var(--bg); border:0; font:inherit; cursor:pointer; text-align:left;
+  transition:transform .2s ease;
+}
+.bar span{font-size:14px}
+.bar strong{font-family:var(--f-num); font-size:20px; font-variant-numeric:tabular-nums}
+.bar.off{transform:translateY(110%)}
+.toast{position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:8px 16px; border-radius:999px; font-size:14px; z-index:6}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">理財顧問報價工具</span>
+    <h1>保誠精選「旅遊樂」保費計算機</h1>
+    <p class="sub">按完整保費表（2025年6月26日起適用）計算，單次旅程最長180日，可加顧問折扣及0.1%保費徵費。</p>
+  </header>
+
+  <div class="grid">
+    <form class="card" id="form" autocomplete="off">
+      <div class="field">
+        <span class="lab" id="lab-plan">保障類型</span>
+        <div class="seg" role="radiogroup" aria-labelledby="lab-plan">
+          <input type="radio" name="plan" id="plan-single" value="single" checked><label for="plan-single">單次旅程保障</label>
+          <input type="radio" name="plan" id="plan-annual" value="annual"><label for="plan-annual">全年保障</label>
+          <input type="radio" name="plan" id="plan-oneway" value="oneway"><label for="plan-oneway">單段旅程保障</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="lab" id="lab-region">地區</span>
+        <div class="seg" id="regionSeg" role="radiogroup" aria-labelledby="lab-region">
+          <input type="radio" name="region" id="region-asia" value="asia" checked><label for="region-asia">亞洲及指定島嶼</label>
+          <input type="radio" name="region" id="region-world" value="world"><label for="region-world">全球</label>
+        </div>
+        <p class="hint" id="regionHint" hidden>全年保障保費不分地區。</p>
+      </div>
+
+      <div class="field" id="dates-single">
+        <div class="dates">
+          <label class="date"><span class="lab">離港日期</span><input type="date" id="dep"></label>
+          <label class="date"><span class="lab">到港日期</span><input type="date" id="ret"></label>
+        </div>
+        <span class="span" id="spanSingle"></span>
+      </div>
+      <div class="field" id="dates-annual" hidden>
+        <div class="dates one">
+          <label class="date"><span class="lab">保障生效日期</span><input type="date" id="annStart"></label>
+        </div>
+        <span class="span" id="spanAnnual"></span>
+      </div>
+      <div class="field" id="dates-oneway" hidden>
+        <div class="dates">
+          <label class="date"><span class="lab">離港日期</span><input type="date" id="owDep"></label>
+          <label class="date"><span class="lab">抵達目的地日期</span><input type="date" id="owArr"></label>
+        </div>
+        <span class="span" id="spanOneway"></span>
+      </div>
+
+      <div class="field">
+        <span class="lab">旅客</span>
+        <div class="people">
+          <label class="prow" for="t-self"><span class="pname"><b>自己</b><small>投保人</small></span><input type="checkbox" role="switch" class="switch" id="t-self" checked></label>
+          <label class="prow" for="t-spouse"><span class="pname"><b>配偶</b></span><input type="checkbox" role="switch" class="switch" id="t-spouse"></label>
+          <div class="prow"><span class="pname"><b>子女</b><small>17歲或以下</small></span>
+            <div class="stepper"><button type="button" data-k="kidsU" data-d="-1" aria-label="減少17歲或以下子女">−</button><output id="o-kidsU">0</output><button type="button" data-k="kidsU" data-d="1" aria-label="增加17歲或以下子女">+</button></div></div>
+          <div class="prow"><span class="pname"><b>子女</b><small>18歲或以上</small></span>
+            <div class="stepper"><button type="button" data-k="kidsO" data-d="-1" aria-label="減少18歲或以上子女">−</button><output id="o-kidsO">0</output><button type="button" data-k="kidsO" data-d="1" aria-label="增加18歲或以上子女">+</button></div></div>
+          <div class="prow"><span class="pname"><b>其他</b></span>
+            <div class="stepper"><button type="button" data-k="others" data-d="-1" aria-label="減少其他旅客">−</button><output id="o-others">0</output><button type="button" data-k="others" data-d="1" aria-label="增加其他旅客">+</button></div></div>
+        </div>
+        <div class="pcount"><span>已選擇 <b id="pc">1</b> 人</span><span>最多可保障六人</span></div>
+      </div>
+
+      <div class="field manual" id="manualBox" hidden>
+        <label class="lab" for="manualRate" id="manualLab">官網報價（只計自己一人）</label>
+        <div class="money"><span>HK$</span><input type="number" id="manualRate" inputmode="decimal" min="0" step="1" placeholder="未連徵費"></div>
+        <p class="hint" id="manualHint"></p>
+      </div>
+
+      <div class="field">
+        <div class="lab-row">
+          <label class="lab" for="disc">顧問提供的折扣</label>
+          <div class="seg seg-sm" role="radiogroup" aria-label="折扣方式">
+            <input type="radio" name="dmode" id="dmode-pct" value="pct" checked><label for="dmode-pct">百分比</label>
+            <input type="radio" name="dmode" id="dmode-amt" value="amt"><label for="dmode-amt">金額</label>
+          </div>
+        </div>
+        <div class="money"><span id="discPre" hidden>HK$</span><input type="number" id="disc" inputmode="decimal" min="0" step="0.5" placeholder="0"><span id="discSuf">% 折扣</span></div>
+        <div class="chips" id="chips">
+          <button type="button" class="chip" data-pct="0">不設折扣</button>
+          <button type="button" class="chip" data-pct="10">9折</button>
+          <button type="button" class="chip" data-pct="15">85折</button>
+          <button type="button" class="chip" data-pct="20">8折</button>
+          <button type="button" class="chip" data-pct="25">75折</button>
+          <button type="button" class="chip" data-pct="30">7折</button>
+        </div>
+      </div>
+    </form>
+
+    <aside class="ticket" id="ticket" aria-live="polite">
+      <div class="t-head">
+        <div class="t-top"><span class="t-kicker">保費報價</span><span class="t-date" id="qDate"></span></div>
+        <div class="t-plan" id="qPlan"></div>
+        <dl class="meta">
+          <dt>日期</dt><dd id="qPeriod"></dd>
+          <dt>旅客</dt><dd id="qPeople"></dd>
+        </dl>
+      </div>
+      <div id="qOk">
+        <div class="t-body" id="qLines"></div>
+        <div class="perf" aria-hidden="true"></div>
+        <div class="t-total">
+          <div class="total"><span class="k">應繳總額</span><span class="v" id="qTotal">—</span></div>
+          <span class="src" id="qSrc"></span>
+          <button type="button" class="copy" id="copyBtn">複製報價文字（WhatsApp）</button>
+          <textarea class="fallback" id="fallback" readonly hidden aria-label="報價文字"></textarea>
+        </div>
+      </div>
+      <div class="err" id="qErr" hidden></div>
+      <details>
+        <summary>計算方法</summary>
+        <ul>
+          <li>保費取自完整保費表：亞洲及指定島嶼、全球各列出 1–32日及全年保障。</li>
+          <li>超過32日：32日保費，加每多一星期嘅附加保費（亞洲個人 HK$84、全球個人 HK$198）。不足一星期當一星期計，呢點係按業界慣例推算。</li>
+          <li>日數由離港日計到到港日，首尾兩日都計在內。</li>
+          <li>組合價：自己＋配偶用配偶價（個人價×2）；自己＋17歲或以下子女用子女價（×1.5，不限子女人數）；自己＋配偶＋子女用家人價（×2.5）。</li>
+          <li>18歲或以上子女及「其他」旅客，每位按個人價另計。冇自己或配偶同行嘅17歲或以下子女，亦按個人價計。呢兩點係推算，報價前請用官網核對。</li>
+          <li>保費表冇列出單段旅程保障，請輸入官網「只計自己」嘅保費，其他旅客按以上比例推算。</li>
+          <li>全年保障：個人 HK$2,130；有配偶或17歲或以下子女同行用家人價 HK$4,260。承保年齡最高80歲。</li>
+          <li>顧問折扣只扣保費。0.1% 保費徵費按折扣前原價計，四捨五入至仙。</li>
+        </ul>
+      </details>
+    </aside>
+  </div>
+
+  <p class="foot">非保誠官方工具。實際保費及條款以保誠正式報價及保單為準。</p>
+</div>
+
+<button type="button" class="bar" id="bar"><span>應繳總額</span><strong id="barTotal">—</strong></button>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+
+  // 完整保費表（2025年6月26日起適用）：[投保人, 投保人及其配偶, 投保人及其子女, 投保人及其家人]
+  const TABLE = {
+    asia: {
+      1:[92,184,138,230], 2:[137,274,206,343], 3:[182,364,273,455], 4:[220,440,330,550], 5:[235,470,353,588],
+      6:[245,490,368,613], 7:[260,520,390,650], 8:[271,542,407,678], 9:[278,556,417,695], 10:[286,572,429,715],
+      11:[293,586,440,733], 12:[312,624,468,780], 13:[317,634,476,793], 14:[328,656,492,820], 15:[333,666,500,833],
+      16:[337,674,506,843], 17:[344,688,516,860], 18:[349,698,524,873], 19:[355,710,533,888], 20:[361,722,542,903],
+      21:[368,736,552,920], 22:[372,744,558,930], 23:[377,754,566,943], 24:[381,762,572,953], 25:[384,768,576,960],
+      26:[388,776,582,970], 27:[394,788,591,985], 28:[397,794,596,993], 29:[400,800,600,1000], 30:[404,808,606,1010],
+      31:[408,816,612,1020], 32:[413,826,620,1033]
+    },
+    world: {
+      1:[138,276,207,345], 2:[228,456,342,570], 3:[304,608,456,760], 4:[379,758,569,948], 5:[410,820,615,1025],
+      6:[434,868,651,1085], 7:[450,900,675,1125], 8:[467,934,701,1168], 9:[503,1006,755,1258], 10:[515,1030,773,1288],
+      11:[529,1058,794,1323], 12:[541,1082,812,1353], 13:[559,1118,839,1398], 14:[571,1142,857,1428], 15:[585,1170,878,1463],
+      16:[597,1194,896,1493], 17:[614,1228,921,1535], 18:[627,1254,941,1568], 19:[659,1318,989,1648], 20:[675,1350,1013,1688],
+      21:[684,1368,1026,1710], 22:[691,1382,1037,1728], 23:[697,1394,1046,1743], 24:[707,1414,1061,1768], 25:[713,1426,1070,1783],
+      26:[721,1442,1082,1803], 27:[726,1452,1089,1815], 28:[735,1470,1103,1838], 29:[742,1484,1113,1855], 30:[750,1500,1125,1875],
+      31:[755,1510,1133,1888], 32:[762,1524,1143,1905]
+    }
+  };
+  // 32日以上：每多一星期加收（不足一星期作一星期計）
+  const EXTRA_WEEK = { asia:[84,168,126,210], world:[198,396,297,495] };
+  const ANNUAL = [2130, 4260, 4260, 4260];
+  const PLAN = {single:'單次旅程保障', annual:'全年保障', oneway:'單段旅程保障'};
+  const REGION = {asia:'亞洲及指定島嶼', world:'全球'};
+  const MAX = 6;
+
+  const counts = {kidsU:0, kidsO:0, others:0};
+  const manualRates = {};
+  let manualKey = '';
+  let quoteText = '';
+
+  // ---------- helpers ----------
+  const z = n => String(n).padStart(2,'0');
+  const todayISO = () => { const d = new Date(); return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate()); };
+  const parse = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y,m-1,d); };
+  const iso = t => new Date(t).toISOString().slice(0,10);
+  const addDays = (s,n) => { const [y,m,d] = s.split('-').map(Number); return iso(Date.UTC(y,m-1,d+n)); };
+  const addYearMinus1 = s => { const [y,m,d] = s.split('-').map(Number); return iso(Date.UTC(y+1,m-1,d-1)); };
+  const diff = (a,b) => Math.round((parse(b)-parse(a))/86400000);
+  const dmy = s => { const [y,m,d] = s.split('-'); return d+'/'+m+'/'+y; };
+  const hk = c => 'HK$' + (c/100).toLocaleString('en-HK',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const hk0 = d => 'HK$' + d.toLocaleString('en-HK');
+  const radio = n => document.querySelector('input[name="'+n+'"]:checked').value;
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+  };
+
+  // ---------- defaults ----------
+  const today = todayISO();
+  $('#qDate').textContent = '報價日期 ' + dmy(today);
+  $('#dep').value = today; $('#ret').value = addDays(today,6);
+  $('#annStart').value = today;
+  $('#owDep').value = today; $('#owArr').value = addDays(today,1);
+  ['#dep','#ret','#annStart','#owDep','#owArr'].forEach(id => $(id).min = today);
+
+  const savedMode = store.get('tq-dmode'), savedDisc = store.get('tq-disc');
+  if (savedMode === 'amt') $('#dmode-amt').checked = true;
+  if (savedDisc !== null && savedDisc !== '') $('#disc').value = savedDisc;
+
+  // ---------- travellers ----------
+  function travellers(){
+    const self = $('#t-self').checked, spouse = $('#t-spouse').checked;
+    const total = (self?1:0) + (spouse?1:0) + counts.kidsU + counts.kidsO + counts.others;
+    return {self, spouse, kidsU:counts.kidsU, kidsO:counts.kidsO, others:counts.others, total};
+  }
+  function peopleText(t){
+    const a = [];
+    if (t.self) a.push('自己');
+    if (t.spouse) a.push('配偶');
+    if (t.kidsU) a.push('子女（17歲或以下）'+t.kidsU+'位');
+    if (t.kidsO) a.push('子女（18歲或以上）'+t.kidsO+'位');
+    if (t.others) a.push('其他'+t.others+'位');
+    return a.join('、');
+  }
+  function syncPeopleUI(){
+    const t = travellers();
+    $('#pc').textContent = t.total;
+    Object.keys(counts).forEach(k => { $('#o-'+k).textContent = counts[k]; });
+    document.querySelectorAll('.stepper button').forEach(b => {
+      const k = b.dataset.k, d = +b.dataset.d;
+      b.disabled = d < 0 ? counts[k] === 0 : t.total >= MAX;
+    });
+    // switches can't push past six
+    ['#t-self','#t-spouse'].forEach(id => { const el = $(id); el.disabled = !el.checked && t.total >= MAX; });
+  }
+
+  // ---------- pricing ----------
+  function priceLines(cols, t, plan){
+    const lines = [];
+    const A = (t.self?1:0) + (t.spouse?1:0), K = t.kidsU;
+    let idx = -1;
+    if (A === 2 && K > 0) idx = 3; else if (A === 2) idx = 1; else if (A === 1 && K > 0) idx = 2; else if (A === 1) idx = 0;
+    const tier = plan === 'annual' ? ['個人價','家人價','家人價','家人價'] : ['個人價','配偶價','子女價','家人價'];
+    if (idx >= 0){
+      const m = [];
+      if (t.self) m.push('自己'); if (t.spouse) m.push('配偶'); if (K) m.push('子女'+K+'位');
+      lines.push({label: m.join('＋') + '（' + tier[idx] + '）', amt: cols[idx]});
+    }
+    const ex = []; let n = 0;
+    if (A === 0 && K){ ex.push('17歲或以下子女'+K+'位'); n += K; }
+    if (t.kidsO){ ex.push('18歲或以上子女'+t.kidsO+'位'); n += t.kidsO; }
+    if (t.others){ ex.push('其他'+t.others+'位'); n += t.others; }
+    if (n) lines.push({label: ex.join('＋') + '（每位 ' + hk0(cols[0]) + '）', amt: cols[0]*n});
+    return lines;
+  }
+  const fromBase = b => [b, Math.round(b*2), Math.round(b*1.5), Math.round(b*2.5)];
+
+  function discLabel(p){
+    if (!(p > 0)) return '';
+    const k = 100 - p;
+    if (Number.isInteger(k)) return (k % 10 === 0 ? k/10 : k) + '折，減' + p + '%';
+    return '減' + p + '%';
+  }
+
+  // ---------- main ----------
+  function compute(){
+    const plan = radio('plan'), region = radio('region'), t = travellers();
+    syncPeopleUI();
+
+    // plan-dependent UI
+    $('#dates-single').hidden = plan !== 'single';
+    $('#dates-annual').hidden = plan !== 'annual';
+    $('#dates-oneway').hidden = plan !== 'oneway';
+    const annual = plan === 'annual';
+    $('#regionSeg').classList.toggle('is-off', annual);
+    document.querySelectorAll('input[name="region"]').forEach(r => r.disabled = annual);
+    $('#regionHint').hidden = !annual;
+
+    $('#qPlan').textContent = PLAN[plan] + (annual ? '' : '・' + REGION[region]);
+    $('#qPeople').textContent = t.total ? t.total + '人：' + peopleText(t) : '—';
+
+    let cols = null, src = '', period = '—', periodShort = '', needManual = false, manualWhy = '';
+    let err = '';
+    $('#spanSingle').textContent = ''; $('#spanAnnual').textContent = ''; $('#spanOneway').textContent = '';
+
+    if (plan === 'single'){
+      const a = $('#dep').value, b = $('#ret').value;
+      if (!a || !b) err = '請揀離港及到港日期。';
+      else {
+        const days = diff(a,b) + 1;
+        if (days < 1) err = '到港日期唔可以早過離港日期。';
+        else if (days > 180) err = '單次旅程最長180日，請改用全年保障或縮短日期。';
+        else {
+          $('#spanSingle').textContent = '共 ' + days + ' 日';
+          period = dmy(a) + ' 至 ' + dmy(b) + '（' + days + '日）';
+          const row = TABLE[region][days];
+          if (row){ cols = row; src = '完整保費表'; }
+          else {
+            const weeks = Math.ceil((days - 32) / 7);
+            const base = TABLE[region][32], ex = EXTRA_WEEK[region];
+            cols = base.map((v,i) => v + weeks * ex[i]);
+            src = '完整保費表（32日＋額外' + weeks + '星期 × ' + hk0(ex[0]) + '）';
+          }
+        }
+      }
+    } else if (annual){
+      const s = $('#annStart').value;
+      if (!s) err = '請揀保障生效日期。';
+      else {
+        const e = addYearMinus1(s);
+        $('#spanAnnual').textContent = '保障至 ' + dmy(e);
+        period = dmy(s) + ' 至 ' + dmy(e) + '（全年）';
+        cols = ANNUAL; src = '完整保費表（全年）';
+      }
+    } else {
+      const a = $('#owDep').value, b = $('#owArr').value;
+      if (!a || !b) err = '請揀離港及抵達目的地日期。';
+      else if (diff(a,b) < 0) err = '抵達日期唔可以早過離港日期。';
+      else {
+        const end = addDays(b,7);
+        $('#spanOneway').textContent = '保障至抵達後第7日（' + dmy(end) + '）';
+        period = dmy(a) + ' 離港，' + dmy(b) + ' 抵達，保障至 ' + dmy(end);
+        needManual = true;
+        manualKey = 'oneway-' + region + '-' + a + '-' + b;
+        manualWhy = '保費表冇列出單段旅程保費。請喺保誠網站揀「自己」計一次（未連徵費），輸入後其他旅客會自動按比例計。';
+        $('#manualLab').textContent = '官網報價：單段旅程・' + REGION[region] + '（只計自己一人）';
+      }
+    }
+    $('#qPeriod').textContent = period;
+
+    // manual base
+    $('#manualBox').hidden = !needManual || !!err;
+    if (needManual && !err){
+      $('#manualHint').textContent = manualWhy;
+      const mi = $('#manualRate');
+      const want = manualRates[manualKey] != null ? String(manualRates[manualKey]) : '';
+      if (document.activeElement !== mi && mi.value !== want) mi.value = want;
+      const b = manualRates[manualKey];
+      if (!(b > 0)) err = '請喺左邊輸入官網報價（只計自己一人），先計到總額。';
+      else { cols = fromBase(Math.round(b)); src = '按官網報價推算'; }
+    }
+    if (!err && t.total === 0) err = '請至少揀一位旅客。';
+
+    if (err){ return showError(err); }
+
+    // money in cents
+    const lines = priceLines(cols, t, plan);
+    const origC = lines.reduce((s,l) => s + l.amt, 0) * 100;
+
+    const mode = radio('dmode');
+    let dv = parseFloat($('#disc').value);
+    if (!(dv > 0)) dv = 0;
+    let discC = 0, dLab = '';
+    if (mode === 'pct'){
+      if (dv > 100) dv = 100;
+      discC = Math.round(origC * dv / 100 + 1e-9);
+      dLab = discLabel(dv);
+    } else {
+      discC = Math.min(Math.round(dv * 100), origC);
+    }
+    const netC = origC - discC;
+    const levyC = Math.floor((origC + 500) / 1000);   // 0.1% of original, rounded half-up to cents
+    const totalC = netC + levyC;
+
+    // chips
+    document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(mode === 'pct' && +c.dataset.pct === dv)));
+
+    // render
+    let h = '';
+    if (lines.length > 1 || lines[0].label.indexOf('個人價') === -1){
+      lines.forEach(l => { h += '<div class="line sm"><span class="k">' + l.label + '</span><span class="v">' + hk(l.amt*100) + '</span></div>'; });
+    }
+    h += '<div class="line strong"><span class="k">原價保費</span><span class="v">' + hk(origC) + '</span></div>';
+    h += '<div class="line' + (discC ? ' save' : ' sm') + '"><span class="k">顧問折扣' + (dLab ? '（' + dLab + '）' : '') + '</span><span class="v">' + (discC ? '−' + hk(discC) : hk(0)) + '</span></div>';
+    if (discC) h += '<div class="line"><span class="k">折後保費</span><span class="v">' + hk(netC) + '</span></div>';
+    h += '<div class="line levy"><span class="k">保費徵費 0.1% <small>（按原價 ' + hk(origC) + '）</small></span><span class="v">' + hk(levyC) + '</span></div>';
+    $('#qLines').innerHTML = h;
+    $('#qTotal').textContent = hk(totalC);
+    $('#barTotal').textContent = hk(totalC);
+    const est = src.indexOf('推算') > -1;
+    $('#qSrc').textContent = '來源：' + src;
+    $('#qSrc').classList.toggle('est', est);
+    $('#qOk').hidden = false; $('#qErr').hidden = true;
+    $('#copyBtn').disabled = false;
+
+    // WhatsApp text
+    const out = [];
+    out.push('保誠精選「旅遊樂」保費報價');
+    out.push('計劃：' + PLAN[plan] + (annual ? '' : '（' + REGION[region] + '）'));
+    out.push('日期：' + period);
+    out.push('旅客：' + peopleText(t) + '，共' + t.total + '人');
+    out.push('');
+    out.push('原價保費：' + hk(origC));
+    if (discC){
+      out.push('顧問折扣' + (dLab ? '（' + dLab + '）' : '') + '：-' + hk(discC));
+      out.push('折後保費：' + hk(netC));
+    }
+    out.push('保費徵費（0.1%，按原價計）：' + hk(levyC));
+    out.push('應繳總額：' + hk(totalC));
+    out.push('');
+    out.push('*實際保費以保誠正式報價為準');
+    quoteText = out.join('\n');
+    if (!$('#fallback').hidden) $('#fallback').value = quoteText;
+  }
+
+  function showError(msg){
+    $('#qOk').hidden = true; $('#qErr').hidden = false;
+    $('#qErr').textContent = msg;
+    $('#barTotal').textContent = '—';
+    quoteText = '';
+  }
+
+  // ---------- events ----------
+  $('#form').addEventListener('submit', e => e.preventDefault());
+  document.querySelectorAll('input[name="plan"], input[name="region"], #t-self, #t-spouse, #dep, #ret, #annStart, #owDep, #owArr')
+    .forEach(el => el.addEventListener('change', compute));
+  ['#dep','#ret','#annStart','#owDep','#owArr'].forEach(id => $(id).addEventListener('input', compute));
+
+  document.querySelectorAll('.stepper button').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k, d = +b.dataset.d;
+    if (d > 0 && travellers().total >= MAX) return;
+    counts[k] = Math.max(0, counts[k] + d);
+    compute();
+  }));
+
+  $('#manualRate').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    manualRates[manualKey] = v > 0 ? v : null;
+    compute();
+  });
+
+  function syncDiscMode(){
+    const amt = radio('dmode') === 'amt';
+    $('#discPre').hidden = !amt;
+    $('#discSuf').textContent = amt ? '扣減' : '% 折扣';
+    $('#disc').step = amt ? '1' : '0.5';
+    $('#chips').hidden = amt;
+  }
+  document.querySelectorAll('input[name="dmode"]').forEach(r => r.addEventListener('change', () => {
+    $('#disc').value = '';
+    store.set('tq-dmode', radio('dmode')); store.set('tq-disc', '');
+    syncDiscMode(); compute();
+  }));
+  $('#disc').addEventListener('input', () => { store.set('tq-disc', $('#disc').value); compute(); });
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+    const p = +c.dataset.pct;
+    $('#disc').value = p ? String(p) : '';
+    store.set('tq-disc', $('#disc').value);
+    compute();
+  }));
+
+  let toastTimer;
+  function toast(msg){
+    let el = document.querySelector('.toast');
+    if (!el){ el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role','status'); document.body.appendChild(el); }
+    el.textContent = msg; el.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
+  }
+  $('#copyBtn').addEventListener('click', () => {
+    if (!quoteText) return;
+    const fb = $('#fallback');
+    const showFallback = () => {
+      fb.value = quoteText; fb.hidden = false; fb.focus(); fb.select();
+      toast('請長按上面文字複製');
+    };
+    try {
+      navigator.clipboard.writeText(quoteText).then(() => toast('已複製報價'), showFallback);
+    } catch(e){ showFallback(); }
+  });
+
+  // pinned bar on phone
+  $('#bar').addEventListener('click', () => {
+    $('#ticket').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start'});
+  });
+  if ('IntersectionObserver' in window){
+    new IntersectionObserver(es => es.forEach(en => $('#bar').classList.toggle('off', en.isIntersecting)), {threshold:0.2})
+      .observe($('.t-total'));
+  }
+
+  syncDiscMode();
+  compute();
+})();
+</script>
+
+</body>
+</html>
