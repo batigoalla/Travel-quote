@@ -68,6 +68,8 @@ h1{font-size:clamp(22px,5.4vw,30px); line-height:1.25; margin:0; font-weight:700
 .seg.is-off label{cursor:not-allowed}
 .seg-sm{display:inline-grid; padding:3px}
 .seg-sm label{min-height:30px; padding:2px 12px; font-size:13px}
+.seg-wrap label{font-size:14px; padding:6px 10px}
+.line .k small{color:var(--muted); font-size:12px}
 
 /* dates */
 .dates{display:grid; grid-template-columns:1fr 1fr; gap:12px}
@@ -250,20 +252,47 @@ body{margin:0}
 
       <div class="field">
         <div class="lab-row">
-          <label class="lab" for="disc">顧問提供的折扣</label>
-          <div class="seg seg-sm" role="radiogroup" aria-label="折扣方式">
-            <input type="radio" name="dmode" id="dmode-pct" value="pct" checked><label for="dmode-pct">百分比</label>
-            <input type="radio" name="dmode" id="dmode-amt" value="amt"><label for="dmode-amt">金額</label>
+          <label class="lab" for="cdisc">公司折扣</label>
+          <div class="seg seg-sm" role="radiogroup" aria-label="公司折扣方式">
+            <input type="radio" name="cmode" id="cmode-pct" value="pct" checked><label for="cmode-pct">百分比</label>
+            <input type="radio" name="cmode" id="cmode-amt" value="amt"><label for="cmode-amt">金額</label>
           </div>
         </div>
-        <div class="money"><span id="discPre" hidden>HK$</span><input type="number" id="disc" inputmode="decimal" min="0" step="0.5" placeholder="0"><span id="discSuf">% 折扣</span></div>
-        <div class="chips" id="chips">
-          <button type="button" class="chip" data-pct="0">不設折扣</button>
-          <button type="button" class="chip" data-pct="10">9折</button>
-          <button type="button" class="chip" data-pct="15">85折</button>
-          <button type="button" class="chip" data-pct="20">8折</button>
-          <button type="button" class="chip" data-pct="25">75折</button>
-          <button type="button" class="chip" data-pct="30">7折</button>
+        <div class="money"><span id="cdiscPre" hidden>HK$</span><input type="number" id="cdisc" inputmode="decimal" min="0" step="0.5" placeholder="0"><span id="cdiscSuf">% 折扣</span></div>
+        <div class="chips" id="cchips">
+          <button type="button" class="chip" data-t="c" data-pct="0">不設折扣</button>
+          <button type="button" class="chip" data-t="c" data-pct="10">9折</button>
+          <button type="button" class="chip" data-t="c" data-pct="15">85折</button>
+          <button type="button" class="chip" data-t="c" data-pct="20">8折</button>
+          <button type="button" class="chip" data-t="c" data-pct="25">75折</button>
+          <button type="button" class="chip" data-t="c" data-pct="30">7折</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="lab-row">
+          <label class="lab" for="adisc">顧問提供的折扣</label>
+          <div class="seg seg-sm" role="radiogroup" aria-label="顧問提供的折扣方式">
+            <input type="radio" name="amode" id="amode-pct" value="pct" checked><label for="amode-pct">百分比</label>
+            <input type="radio" name="amode" id="amode-amt" value="amt"><label for="amode-amt">金額</label>
+          </div>
+        </div>
+        <div class="money"><span id="adiscPre" hidden>HK$</span><input type="number" id="adisc" inputmode="decimal" min="0" step="0.5" placeholder="0"><span id="adiscSuf">% 折扣</span></div>
+        <div class="chips" id="achips">
+          <button type="button" class="chip" data-t="a" data-pct="0">不設折扣</button>
+          <button type="button" class="chip" data-t="a" data-pct="10">9折</button>
+          <button type="button" class="chip" data-t="a" data-pct="15">85折</button>
+          <button type="button" class="chip" data-t="a" data-pct="20">8折</button>
+          <button type="button" class="chip" data-t="a" data-pct="25">75折</button>
+          <button type="button" class="chip" data-t="a" data-pct="30">7折</button>
+        </div>
+      </div>
+
+      <div class="field" id="stackBox" hidden>
+        <span class="lab" id="lab-stack">兩個折扣點計</span>
+        <div class="seg seg-wrap" role="radiogroup" aria-labelledby="lab-stack">
+          <input type="radio" name="stack" id="stack-seq" value="seq" checked><label for="stack-seq">先扣公司折扣，再計顧問折扣</label>
+          <input type="radio" name="stack" id="stack-flat" value="flat"><label for="stack-flat">兩個都按原價計</label>
         </div>
       </div>
     </form>
@@ -298,7 +327,8 @@ body{margin:0}
           <li>18歲或以上子女及「其他」旅客，每位按個人價另計。冇自己或配偶同行嘅17歲或以下子女，亦按個人價計。呢兩點係推算，報價前請用官網核對。</li>
           <li>保費表冇列出單段旅程保障，請輸入官網「只計自己」嘅保費，其他旅客按以上比例推算。</li>
           <li>全年保障：個人 HK$2,130；有配偶或17歲或以下子女同行用家人價 HK$4,260。承保年齡最高80歲。</li>
-          <li>顧問折扣只扣保費。0.1% 保費徵費按折扣前原價計，四捨五入至仙。</li>
+          <li>公司折扣同顧問折扣只扣保費。兩個都有折扣時，預設先扣公司折扣，再按扣完嘅保費計顧問折扣；可以改做兩個都按原價計。</li>
+          <li>0.1% 保費徵費按折扣前原價計，四捨五入至仙。</li>
         </ul>
       </details>
     </aside>
@@ -371,9 +401,13 @@ body{margin:0}
   $('#owDep').value = today; $('#owArr').value = addDays(today,1);
   ['#dep','#ret','#annStart','#owDep','#owArr'].forEach(id => $(id).min = today);
 
-  const savedMode = store.get('tq-dmode'), savedDisc = store.get('tq-disc');
-  if (savedMode === 'amt') $('#dmode-amt').checked = true;
-  if (savedDisc !== null && savedDisc !== '') $('#disc').value = savedDisc;
+  const KEYS = { a:['tq-dmode','tq-disc'], c:['tq-cmode','tq-cdisc'] };
+  ['a','c'].forEach(px => {
+    const m = store.get(KEYS[px][0]), v = store.get(KEYS[px][1]);
+    if (m === 'amt') $('#'+px+'mode-amt').checked = true;
+    if (v !== null && v !== '') $('#'+px+'disc').value = v;
+  });
+  if (store.get('tq-stack') === 'flat') $('#stack-flat').checked = true;
 
   // ---------- travellers ----------
   function travellers(){
@@ -515,23 +549,37 @@ body{margin:0}
     const lines = priceLines(cols, t, plan);
     const origC = lines.reduce((s,l) => s + l.amt, 0) * 100;
 
-    const mode = radio('dmode');
-    let dv = parseFloat($('#disc').value);
-    if (!(dv > 0)) dv = 0;
-    let discC = 0, dLab = '';
-    if (mode === 'pct'){
-      if (dv > 100) dv = 100;
-      discC = Math.round(origC * dv / 100 + 1e-9);
-      dLab = discLabel(dv);
-    } else {
-      discC = Math.min(Math.round(dv * 100), origC);
-    }
+    const readDisc = px => {
+      const mode = radio(px+'mode');
+      let v = parseFloat($('#'+px+'disc').value);
+      if (!(v > 0)) v = 0;
+      if (mode === 'pct' && v > 100) v = 100;
+      return {mode, v, lab: mode === 'pct' ? discLabel(v) : ''};
+    };
+    const cD = readDisc('c'), aD = readDisc('a');
+    const cC = cD.mode === 'pct' ? Math.round(origC * cD.v / 100 + 1e-9) : Math.min(Math.round(cD.v * 100), origC);
+    const showStack = cC > 0 && aD.v > 0 && aD.mode === 'pct';
+    $('#stackBox').hidden = !showStack;
+    const seq = radio('stack') === 'seq';
+    const aBase = seq ? origC - cC : origC;
+    let aC = aD.mode === 'pct' ? Math.round(aBase * aD.v / 100 + 1e-9) : Math.round(aD.v * 100);
+    aC = Math.min(aC, origC - cC);
+    const discC = cC + aC;
     const netC = origC - discC;
     const levyC = Math.floor((origC + 500) / 1000);   // 0.1% of original, rounded half-up to cents
     const totalC = netC + levyC;
+    let effLab = '';
+    if (cC && aC && origC){
+      const k = Math.round(netC / origC * 1000) / 10;
+      effLab = '相當於' + (k % 10 === 0 ? k / 10 : k) + '折';
+    }
+    const aNote = showStack && seq ? '按公司折扣後 ' + hk(origC - cC) + ' 計' : '';
 
     // chips
-    document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(mode === 'pct' && +c.dataset.pct === dv)));
+    document.querySelectorAll('.chip').forEach(c => {
+      const d = c.dataset.t === 'c' ? cD : aD;
+      c.setAttribute('aria-pressed', String(d.mode === 'pct' && +c.dataset.pct === d.v));
+    });
 
     // render
     let h = '';
@@ -539,7 +587,10 @@ body{margin:0}
       lines.forEach(l => { h += '<div class="line sm"><span class="k">' + l.label + '</span><span class="v">' + hk(l.amt*100) + '</span></div>'; });
     }
     h += '<div class="line strong"><span class="k">原價保費</span><span class="v">' + hk(origC) + '</span></div>';
-    h += '<div class="line' + (discC ? ' save' : ' sm') + '"><span class="k">顧問折扣' + (dLab ? '（' + dLab + '）' : '') + '</span><span class="v">' + (discC ? '−' + hk(discC) : hk(0)) + '</span></div>';
+    const dline = (name, amt, lab, note) => '<div class="line' + (amt ? ' save' : ' sm') + '"><span class="k">' + name + (lab ? '（' + lab + '）' : '') + (note ? '<br><small>' + note + '</small>' : '') + '</span><span class="v">' + (amt ? '−' + hk(amt) : hk(0)) + '</span></div>';
+    h += dline('公司折扣', cC, cD.lab, '');
+    h += dline('顧問折扣', aC, aD.lab, aC ? aNote : '');
+    if (cC && aC) h += '<div class="line sm"><span class="k">合共折扣（' + effLab + '）</span><span class="v">−' + hk(discC) + '</span></div>';
     if (discC) h += '<div class="line"><span class="k">折後保費</span><span class="v">' + hk(netC) + '</span></div>';
     h += '<div class="line levy"><span class="k">保費徵費 0.1% <small>（按原價 ' + hk(origC) + '）</small></span><span class="v">' + hk(levyC) + '</span></div>';
     $('#qLines').innerHTML = h;
@@ -559,10 +610,10 @@ body{margin:0}
     out.push('旅客：' + peopleText(t) + '，共' + t.total + '人');
     out.push('');
     out.push('原價保費：' + hk(origC));
-    if (discC){
-      out.push('顧問折扣' + (dLab ? '（' + dLab + '）' : '') + '：-' + hk(discC));
-      out.push('折後保費：' + hk(netC));
-    }
+    if (cC) out.push('公司折扣' + (cD.lab ? '（' + cD.lab + '）' : '') + '：-' + hk(cC));
+    if (aC) out.push('顧問折扣' + (aD.lab ? '（' + aD.lab + '）' : '') + '：-' + hk(aC));
+    if (cC && aC) out.push('合共折扣（' + effLab + '）：-' + hk(discC));
+    if (discC) out.push('折後保費：' + hk(netC));
     out.push('保費徵費（0.1%，按原價計）：' + hk(levyC));
     out.push('應繳總額：' + hk(totalC));
     out.push('');
@@ -597,25 +648,28 @@ body{margin:0}
     compute();
   });
 
-  function syncDiscMode(){
-    const amt = radio('dmode') === 'amt';
-    $('#discPre').hidden = !amt;
-    $('#discSuf').textContent = amt ? '扣減' : '% 折扣';
-    $('#disc').step = amt ? '1' : '0.5';
-    $('#chips').hidden = amt;
+  function syncDiscMode(px){
+    const amt = radio(px+'mode') === 'amt';
+    $('#'+px+'discPre').hidden = !amt;
+    $('#'+px+'discSuf').textContent = amt ? '扣減' : '% 折扣';
+    $('#'+px+'disc').step = amt ? '1' : '0.5';
+    $('#'+px+'chips').hidden = amt;
   }
-  document.querySelectorAll('input[name="dmode"]').forEach(r => r.addEventListener('change', () => {
-    $('#disc').value = '';
-    store.set('tq-dmode', radio('dmode')); store.set('tq-disc', '');
-    syncDiscMode(); compute();
-  }));
-  $('#disc').addEventListener('input', () => { store.set('tq-disc', $('#disc').value); compute(); });
+  ['a','c'].forEach(px => {
+    document.querySelectorAll('input[name="'+px+'mode"]').forEach(r => r.addEventListener('change', () => {
+      $('#'+px+'disc').value = '';
+      store.set(KEYS[px][0], radio(px+'mode')); store.set(KEYS[px][1], '');
+      syncDiscMode(px); compute();
+    }));
+    $('#'+px+'disc').addEventListener('input', () => { store.set(KEYS[px][1], $('#'+px+'disc').value); compute(); });
+  });
   document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
-    const p = +c.dataset.pct;
-    $('#disc').value = p ? String(p) : '';
-    store.set('tq-disc', $('#disc').value);
+    const px = c.dataset.t, p = +c.dataset.pct;
+    $('#'+px+'disc').value = p ? String(p) : '';
+    store.set(KEYS[px][1], $('#'+px+'disc').value);
     compute();
   }));
+  document.querySelectorAll('input[name="stack"]').forEach(r => r.addEventListener('change', () => { store.set('tq-stack', radio('stack')); compute(); }));
 
   let toastTimer;
   function toast(msg){
@@ -645,7 +699,7 @@ body{margin:0}
       .observe($('.t-total'));
   }
 
-  syncDiscMode();
+  syncDiscMode('a'); syncDiscMode('c');
   compute();
 })();
 </script>
